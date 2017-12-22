@@ -71,7 +71,7 @@ namespace fs {
 		cv::Range w_range2 = cv::Range(average_column_width * 0.3, average_column_width * 1.95);
 		x_splits = findBoundaries(blurred_gray_img.t(), w_range1, w_range2, std::round(img.cols / average_column_width) + 1, Hor);
 
-		//extractWindows(gray_img, y_splits, x_splits, win_rects);
+		extractWindows(gray_img, y_splits, x_splits, win_rects);
 	}
 
 	std::vector<float> findBoundaries(const cv::Mat& img, cv::Range range1, cv::Range range2, int num_splits, const cv::Mat_<float>& Ver) {

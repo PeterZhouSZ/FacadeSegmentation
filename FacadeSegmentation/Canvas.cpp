@@ -46,6 +46,21 @@ void Canvas::paintEvent(QPaintEvent *event) {
 			}
 		}
 
+		// draw windows
+		if (y_splits.size() > 0) {
+			painter.setPen(QPen(QColor(0, 0, 255), 3));
+			for (int i = 0; i < y_splits.size() - 1; ++i) {
+				for (int j = 0; j < x_splits.size() - 1; ++j) {
+					if (win_rects[i][j].valid) {
+						int x1 = (x_splits[j] + win_rects[i][j].left) / orig_image.width() * image.width();
+						int y1 = (y_splits[i] + win_rects[i][j].top) / orig_image.height() * image.height();
+						int x2 = (x_splits[j] + win_rects[i][j].right) / orig_image.width() * image.width();
+						int y2 = (y_splits[i] + win_rects[i][j].bottom) / orig_image.height() * image.height();
+						painter.drawRect(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
+					}
+				}
+			}
+		}
 	}
 }
 
