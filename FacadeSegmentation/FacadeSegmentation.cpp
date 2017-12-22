@@ -175,7 +175,6 @@ namespace fs {
 				return good_candidates[0];
 			}
 
-#if 1
 			// find the best candidate
 			float min_val = std::numeric_limits<float>::max();
 			int best_id = -1;
@@ -208,37 +207,6 @@ namespace fs {
 			}
 
 			return good_candidates[best_id];
-#endif
-
-#if 0
-			// compute S
-			float min_S = std::numeric_limits<float>::max();
-			int best_id = -1;
-			for (int i = 0; i < good_candidates.size(); ++i) {
-				float avg_S = 0;
-				if (good_candidates[i].size() >= 3) {
-					float total_S = 0;
-					for (int j = 0; j < good_candidates[i].size() - 2; ++j) {
-						int h1 = good_candidates[i][j + 1] - good_candidates[i][j];
-						int h2 = good_candidates[i][j + 2] - good_candidates[i][j + 1];
-						if (std::abs(h1 - h2) / h1 < 0.1) {
-							cv::Mat roi1(img, cv::Rect(0, good_candidates[i][j], img.cols, h1));
-							cv::Mat roi2(img, cv::Rect(0, good_candidates[i][j + 1], img.cols, h2));
-							total_S += MI(roi1, roi2);
-						}
-					}
-
-					avg_S = total_S / (good_candidates[i].size() - 2);
-				}
-
-				if (avg_S < min_S) {
-					min_S = avg_S;
-					best_id = i;
-				}
-			}
-
-			return good_candidates[best_id];
-#endif
 		}
 
 		// if there is no good splits found, use the original candidate splits
