@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <opencv2/opencv.hpp>
+#include <dlib/optimization.h>
 
 namespace fs {
 
@@ -21,7 +22,18 @@ namespace fs {
 		WindowPos(int left, int top, int right, int bottom) : left(left), top(top), right(right), bottom(bottom), valid(VALID) {}
 	};
 
-	void subdivideFacade(cv::Mat img, float floor_height, float column_width, std::vector<float>& y_split, std::vector<float>& x_split, std::vector<std::vector<WindowPos>>& win_rects);
+	typedef dlib::matrix<double, 0, 1> column_vector;
+
+	class SplitLineSolver {
+	private:
+		cv::Mat_<float> Ver;
+
+	public:
+		SplitLineSolver(const cv::Mat_<float>& Ver);
+		double operator() (const column_vector& arg) const;
+	};
+
+	void subdivideFacade(cv::Mat img, float floor_height, float column_width, std::vector<float>& y_split, std::vector<float>& x_split, std::vector<std::vector<WindowPos>>& win_rects, cv::Mat_<float>& Ver, cv::Mat_<float>& Hor);
 	std::vector<float> findBoundaries(const cv::Mat& img, cv::Range range1, cv::Range range2, int num_splits, const cv::Mat_<float>& Ver);
 	bool sortBySecondValue(const std::pair<float, float>& a, const std::pair<float, float>& b);
 	void sortByS(std::vector<float>& splits, std::map<int, float>& S_max);

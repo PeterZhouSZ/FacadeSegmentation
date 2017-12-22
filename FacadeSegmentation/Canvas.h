@@ -14,6 +14,8 @@ private:
 	QImage orig_image;
 	std::vector<float> y_splits;
 	std::vector<float> x_splits;
+	cv::Mat_<float> Ver;
+	cv::Mat_<float> Hor;
 	std::vector<std::vector<fs::WindowPos>> win_rects;
 
 	bool ctrlPressed;
@@ -30,7 +32,6 @@ protected:
 public:
 	void load(const QString& filename);
 	void segmentation(int num_floors, int num_columns);
-	//void set(const QString& filename, const std::vector<float>& y_splits, const std::vector<float>& x_splits, const std::vector<std::vector<fs::WindowPos>>& win_rects);
 	void keyPressEvent(QKeyEvent* e);
 	void keyReleaseEvent(QKeyEvent* e);
 };

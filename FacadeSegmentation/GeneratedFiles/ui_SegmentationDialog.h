@@ -35,7 +35,7 @@ public:
     {
         if (SegmentationDialog->objectName().isEmpty())
             SegmentationDialog->setObjectName(QStringLiteral("SegmentationDialog"));
-        SegmentationDialog->resize(212, 126);
+        SegmentationDialog->resize(211, 111);
         label = new QLabel(SegmentationDialog);
         label->setObjectName(QStringLiteral("label"));
         label->setGeometry(QRect(20, 20, 61, 16));
@@ -50,10 +50,10 @@ public:
         lineEditNumColumns->setGeometry(QRect(110, 40, 81, 20));
         pushButtonOK = new QPushButton(SegmentationDialog);
         pushButtonOK->setObjectName(QStringLiteral("pushButtonOK"));
-        pushButtonOK->setGeometry(QRect(10, 80, 91, 31));
+        pushButtonOK->setGeometry(QRect(10, 70, 91, 31));
         pushButtonCancel = new QPushButton(SegmentationDialog);
         pushButtonCancel->setObjectName(QStringLiteral("pushButtonCancel"));
-        pushButtonCancel->setGeometry(QRect(110, 80, 91, 31));
+        pushButtonCancel->setGeometry(QRect(110, 70, 91, 31));
 
         retranslateUi(SegmentationDialog);
 

@@ -7,11 +7,27 @@
 namespace fs {
 	int seq = 0;
 
-	void subdivideFacade(cv::Mat img, float average_floor_height, float average_column_width, std::vector<float>& y_splits, std::vector<float>& x_splits, std::vector<std::vector<WindowPos>>& win_rects) {
+	SplitLineSolver::SplitLineSolver(const cv::Mat_<float>& Ver) {
+		this->Ver = Ver;
+	}
+
+	double SplitLineSolver::operator() (const column_vector& arg) const {
+		double cost = 0.0;
+
+		for (int i = 0; i < arg.size(); i++) {
+			int y = std::min(std::max(0, (int)(arg(i) * Ver.rows)), Ver.rows - 1);
+			double v = Ver(y, 0);
+			cost += v;
+		}
+
+		return cost;
+	}
+
+	void subdivideFacade(cv::Mat img, float average_floor_height, float average_column_width, std::vector<float>& y_splits, std::vector<float>& x_splits, std::vector<std::vector<WindowPos>>& win_rects, cv::Mat_<float>& Ver, cv::Mat_<float>& Hor) {
 		// gray scale
 		cv::Mat gray_img;
 		cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
-		
+
 		// compute kernel size
 		int kernel_size_V = average_floor_height / 8;
 		if (kernel_size_V % 2 == 0) kernel_size_V++;
@@ -28,7 +44,7 @@ namespace fs {
 		}
 
 		// compute Ver and Hor
-		cv::Mat_<float> Ver, Hor;
+		//cv::Mat_<float> Ver, Hor;
 		computeVerAndHor2(blurred_gray_img, Ver, Hor, 0.0);
 
 		// smooth Ver and Hor
@@ -38,24 +54,24 @@ namespace fs {
 		if (kernel_size_H > 1) {
 			cv::blur(Hor, Hor, cv::Size(kernel_size_H, kernel_size_H));
 		}
-		
+
 		////////////////////////////////////////////////////////////////////////////////////////////////
 		// subdivide vertically
-		
+
 		// find the floor boundaries
 		cv::Range h_range1 = cv::Range(average_floor_height * 0.7, average_floor_height * 1.5);
 		cv::Range h_range2 = cv::Range(average_floor_height * 0.5, average_floor_height * 1.95);
 		y_splits = findBoundaries(blurred_gray_img, h_range1, h_range2, std::round(img.rows / average_floor_height) + 1, Ver);
-		
+
 		////////////////////////////////////////////////////////////////////////////////////////////////
 		// subdivide horizontally
-		
+
 		// find the floor boundaries
 		cv::Range w_range1 = cv::Range(average_column_width * 0.6, average_column_width * 1.3);
 		cv::Range w_range2 = cv::Range(average_column_width * 0.3, average_column_width * 1.95);
 		x_splits = findBoundaries(blurred_gray_img.t(), w_range1, w_range2, std::round(img.cols / average_column_width) + 1, Hor);
-		
-		extractWindows(gray_img, y_splits, x_splits, win_rects);
+
+		//extractWindows(gray_img, y_splits, x_splits, win_rects);
 	}
 
 	std::vector<float> findBoundaries(const cv::Mat& img, cv::Range range1, cv::Range range2, int num_splits, const cv::Mat_<float>& Ver) {
@@ -135,7 +151,7 @@ namespace fs {
 			}
 
 			// discard the candidates that have too few strong splits
-			for (int i = 0; i < good_candidates.size(); ) {
+			for (int i = 0; i < good_candidates.size();) {
 				int num_strong_splits = 0;
 				for (int j = 0; j < good_candidates[i].size(); ++j) {
 					if (is_strong[good_candidates[i][j]]) num_strong_splits++;
@@ -224,7 +240,7 @@ namespace fs {
 			return good_candidates[best_id];
 #endif
 		}
-		
+
 		// if there is no good splits found, use the original candidate splits
 		std::cerr << "-----------------------------------" << std::endl;
 		std::cerr << "No good split is found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
@@ -547,9 +563,9 @@ namespace fs {
 	* @param Ver		Ver(y)
 	* @param Hor		Hor(x)
 	*/
-	void computeVerAndHor(const cv::Mat& img, cv::Mat_<float>& Ver, cv::Mat_<float>& Hor, float sigma) {
-		cv::Mat grayImg;
-		cv::cvtColor(img, grayImg, cv::COLOR_BGR2GRAY);
+	void computeVerAndHor(const cv::Mat& grayImg, cv::Mat_<float>& Ver, cv::Mat_<float>& Hor, float sigma) {
+		//cv::Mat grayImg;
+		//cv::cvtColor(img, grayImg, cv::COLOR_BGR2GRAY);
 
 		float alpha = 0.9f;
 
@@ -600,7 +616,7 @@ namespace fs {
 
 		// compute Ver(y) and Hor(x) according to Equation (4)
 		Ver = cv::Mat_<float>(grayImg.rows, 1, 0.0f);
-		Hor = cv::Mat_<float>(1, grayImg.cols, 0.0f);
+		Hor = cv::Mat_<float>(grayImg.cols, 1, 0.0f);
 		float beta = 0.1f;
 		for (int r = 0; r < grayImg.rows; ++r) {
 			for (int rr = 0; rr < grayImg.rows; ++rr) {
@@ -609,7 +625,7 @@ namespace fs {
 		}
 		for (int c = 0; c < grayImg.cols; ++c) {
 			for (int cc = 0; cc < grayImg.cols; ++cc) {
-				Hor(0, c) += (hor_ytotal.at<float>(0, cc) - beta * ver_ytotal.at<float>(0, cc)) * utils::gause(cc - c, sigma);
+				Hor(c, 0) += (hor_ytotal.at<float>(0, cc) - beta * ver_ytotal.at<float>(0, cc)) * utils::gause(cc - c, sigma);
 			}
 		}
 	}
