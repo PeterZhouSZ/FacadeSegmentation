@@ -33,11 +33,11 @@ namespace fs {
 		double operator() (const column_vector& arg) const;
 	};
 
-	void subdivideFacade(cv::Mat img, float floor_height, float column_width, std::vector<float>& y_split, std::vector<float>& x_split, std::vector<std::vector<WindowPos>>& win_rects, cv::Mat_<float>& Ver, cv::Mat_<float>& Hor);
+	void subdivideFacade(cv::Mat img, float floor_height, float column_width, std::vector<float>& y_split, std::vector<float>& x_split, cv::Mat_<float>& Ver, cv::Mat_<float>& Hor);
+	int findLocalMin(const cv::Mat_<float>& Ver, int index);
 	std::vector<float> findBoundaries(const cv::Mat& img, cv::Range range1, cv::Range range2, int num_splits, const cv::Mat_<float>& Ver);
 	bool sortBySecondValue(const std::pair<float, float>& a, const std::pair<float, float>& b);
 	void sortByS(std::vector<float>& splits, std::map<int, float>& S_max);
-	void extractWindows(cv::Mat gray_img, const std::vector<float>& y_splits, const std::vector<float>& x_splits, std::vector<std::vector<WindowPos>>& win_rects);
 	float MI(const cv::Mat& R1, const cv::Mat& R2);
 	void computeSV(const cv::Mat& img, cv::Mat_<float>& SV_max, cv::Mat_<int>& h_max, const cv::Range& h_range);
 	void computeSV(const cv::Mat& img, int r, float& SV_max, int& h_max, const cv::Range& h_range);

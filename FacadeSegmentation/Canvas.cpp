@@ -45,22 +45,6 @@ void Canvas::paintEvent(QPaintEvent *event) {
 				painter.drawLine(i * scale, height() - Hor(i, 0) / max_val * 100 * scale, (i + 1) * scale, height() - Hor(i + 1, 0) / max_val * 100 * scale);
 			}
 		}
-
-		// draw windows
-		if (y_splits.size() > 0) {
-			painter.setPen(QPen(QColor(0, 0, 255), 3));
-			for (int i = 0; i < y_splits.size() - 1; ++i) {
-				for (int j = 0; j < x_splits.size() - 1; ++j) {
-					if (win_rects[i][j].valid) {
-						int x1 = (x_splits[j] + win_rects[i][j].left) / orig_image.width() * image.width();
-						int y1 = (y_splits[i] + win_rects[i][j].top) / orig_image.height() * image.height();
-						int x2 = (x_splits[j] + win_rects[i][j].right) / orig_image.width() * image.width();
-						int y2 = (y_splits[i] + win_rects[i][j].bottom) / orig_image.height() * image.height();
-						painter.drawRect(x1, y1, x2 - x1 + 1, y2 - y1 + 1);
-					}
-				}
-			}
-		}
 	}
 }
 
@@ -88,7 +72,7 @@ void Canvas::segmentation(int num_floors, int num_columns) {
 	double floor_height = (double)facade_img.rows / num_floors;
 	double column_width = (double)facade_img.cols / num_columns;
 
-	fs::subdivideFacade(facade_img, floor_height, column_width, y_splits, x_splits, win_rects, Ver, Hor);
+	fs::subdivideFacade(facade_img, floor_height, column_width, y_splits, x_splits, Ver, Hor);
 }
 
 void Canvas::keyPressEvent(QKeyEvent* e) {

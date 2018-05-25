@@ -16,7 +16,6 @@ private:
 	std::vector<float> x_splits;
 	cv::Mat_<float> Ver;
 	cv::Mat_<float> Hor;
-	std::vector<std::vector<fs::WindowPos>> win_rects;
 
 	bool ctrlPressed;
 	bool shiftPressed;

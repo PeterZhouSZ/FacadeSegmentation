@@ -23,7 +23,7 @@ namespace fs {
 		return cost;
 	}
 
-	void subdivideFacade(cv::Mat img, float average_floor_height, float average_column_width, std::vector<float>& y_splits, std::vector<float>& x_splits, std::vector<std::vector<WindowPos>>& win_rects, cv::Mat_<float>& Ver, cv::Mat_<float>& Hor) {
+	void subdivideFacade(cv::Mat img, float average_floor_height, float average_column_width, std::vector<float>& y_splits, std::vector<float>& x_splits, cv::Mat_<float>& Ver, cv::Mat_<float>& Hor) {
 		// gray scale
 		cv::Mat gray_img;
 		cv::cvtColor(img, gray_img, cv::COLOR_BGR2GRAY);
@@ -59,161 +59,65 @@ namespace fs {
 		// subdivide vertically
 
 		// find the floor boundaries
-		cv::Range h_range1 = cv::Range(average_floor_height * 0.7, average_floor_height * 1.5);
-		cv::Range h_range2 = cv::Range(average_floor_height * 0.5, average_floor_height * 1.95);
+		cv::Range h_range1 = cv::Range(average_floor_height * 0.6, average_floor_height * 1.5);
+		cv::Range h_range2 = cv::Range(average_floor_height * 0.4, average_floor_height * 2.5);
 		y_splits = findBoundaries(blurred_gray_img, h_range1, h_range2, std::round(img.rows / average_floor_height) + 1, Ver);
 
 		////////////////////////////////////////////////////////////////////////////////////////////////
 		// subdivide horizontally
 
 		// find the floor boundaries
-		cv::Range w_range1 = cv::Range(average_column_width * 0.6, average_column_width * 1.3);
-		cv::Range w_range2 = cv::Range(average_column_width * 0.3, average_column_width * 1.95);
+		cv::Range w_range1 = cv::Range(average_column_width * 0.6, average_column_width * 1.5);
+		cv::Range w_range2 = cv::Range(average_column_width * 0.4, average_column_width * 2.5);
 		x_splits = findBoundaries(blurred_gray_img.t(), w_range1, w_range2, std::round(img.cols / average_column_width) + 1, Hor);
+	}
 
-		extractWindows(gray_img, y_splits, x_splits, win_rects);
+	int findLocalMin(const cv::Mat_<float>& Ver, int index) {
+		int low_y = -1;
+		for (int y = index; y >= 0; y--) {
+			if (cvutils::isLocalMinimum(Ver, y, 2)) {
+				low_y = y;
+				break;
+			}
+		}
+
+		int high_y = -1;
+		for (int y = index; y < Ver.rows; y++) {
+			if (cvutils::isLocalMinimum(Ver, y, 2)) {
+				high_y = y;
+				break;
+			}
+		}
+
+		if (low_y >= 0) {
+			if (high_y < 0 || index - low_y < high_y - index) {
+				return low_y;
+			}
+			else {
+				return high_y;
+			}
+		}
+		else {
+			if (high_y >= 0) return high_y;
+			else return -1;
+		}
 	}
 
 	std::vector<float> findBoundaries(const cv::Mat& img, cv::Range range1, cv::Range range2, int num_splits, const cv::Mat_<float>& Ver) {
-		std::vector<std::vector<float>> good_candidates;
+		float floor_height = (float)img.rows / (num_splits - 1);
 
-		// find the local minima of Ver
-		std::vector<float> y_splits_strong;
-		getSplitLines(Ver, 0.5, y_splits_strong);
-
-		// ignore the split lines that are too close to the border
-		if (y_splits_strong.size() > 0 && y_splits_strong[0] < range2.start) {
-			y_splits_strong.erase(y_splits_strong.begin());
-		}
-		if (y_splits_strong.size() > 0 && img.rows - 1 - y_splits_strong.back() < range2.start) {
-			y_splits_strong.pop_back();
+		std::vector<float> y_splits(num_splits - 2);
+		float cur_y = floor_height;
+		for (int i = 0; i < y_splits.size(); i++) {
+			y_splits[i] = cur_y;
+			cur_y += floor_height;
 		}
 
-		for (int iter = 0; iter < 2; ++iter) {
-			// find the local minima of Ver
-			std::vector<float> y_splits;
-			getSplitLines(Ver, 0.05 / (iter + 1), y_splits);
-
-			// check whether each split is strong or not
-			std::map<float, bool> is_strong;
-			for (int i = 0; i < y_splits.size(); ++i) {
-				if (std::find(y_splits_strong.begin(), y_splits_strong.end(), y_splits[i]) != y_splits_strong.end()) {
-					is_strong[y_splits[i]] = true;
-				}
-				else {
-					is_strong[y_splits[i]] = false;
-				}
-			}
-
-			std::list<std::vector<float>> queue;
-			queue.push_back(std::vector<float>(1, 0));
-			while (!queue.empty()) {
-				std::vector<float> list = queue.back();
-				queue.pop_back();
-
-				if (img.rows - list.back() >= range2.start && img.rows - list.back() <= range2.end) {
-					std::vector<float> new_list = list;
-					new_list.push_back(img.rows - 1);
-
-					// Only if the number of splits so far does not exceed the limit,
-					// add this to the candidate list.
-					if (std::abs((int)new_list.size() - num_splits) <= 1) {
-						good_candidates.push_back(new_list);
-					}
-				}
-
-				for (int i = 0; i < y_splits.size(); ++i) {
-					if (y_splits[i] <= list.back()) continue;
-					if (list.size() == 1) {
-						// for the top floor, use the wider range to check
-						if (y_splits[i] - list.back() < range2.start || y_splits[i] - list.back() > range2.end) continue;
-					}
-					else {
-						// for other floors, use the narrower range to check
-						if (y_splits[i] - list.back() < range1.start || y_splits[i] - list.back() > range1.end) continue;
-					}
-
-					std::vector<float> new_list = list;
-					new_list.push_back(y_splits[i]);
-
-					// Only if the number of splits so far does not exceed the limit,
-					// add this to the queue.
-					if ((int)new_list.size() + 1 - num_splits <= 1) {
-						queue.push_back(new_list);
-					}
-
-					// If this split is a strong one, you cannot skip this, so stop here.
-					if (is_strong[y_splits[i]]) {
-						break;
-					}
-				}
-
-			}
-
-			// discard the candidates that have too few strong splits
-			for (int i = 0; i < good_candidates.size();) {
-				int num_strong_splits = 0;
-				for (int j = 0; j < good_candidates[i].size(); ++j) {
-					if (is_strong[good_candidates[i][j]]) num_strong_splits++;
-				}
-
-				if ((float)num_strong_splits < y_splits_strong.size() * 0.8) {
-					good_candidates.erase(good_candidates.begin() + i);
-				}
-				else {
-					++i;
-				}
-			}
-
-			// if there is no good candidate found, increase the range and start over the process
-			if (good_candidates.size() == 0) {
-				continue;
-			}
-
-			// if there is only one option, select it.
-			if (good_candidates.size() == 1) {
-				return good_candidates[0];
-			}
-
-			// find the best candidate
-			float min_val = std::numeric_limits<float>::max();
-			int best_id = -1;
-			float alpha = 0.5;
-			for (int i = 0; i < good_candidates.size(); ++i) {
-				// compute the average Ver/Hor
-				float total_Ver = 0;
-				for (int k = 1; k < (int)good_candidates[i].size() - 1; ++k) {
-					total_Ver += Ver(good_candidates[i][k]);
-				}
-
-				float avg_Ver = total_Ver / ((int)good_candidates[i].size() - 2);
-
-				// compute stddev of heights
-				std::vector<float> heights;
-				for (int k = 0; k < (int)good_candidates[i].size() - 1; ++k) {
-					int h = good_candidates[i][k + 1] - good_candidates[i][k];
-					heights.push_back(h);
-				}
-				float stddev = utils::stddev(heights);
-				if (heights.size() > 0) {
-					float avg_h = utils::mean(heights);
-					stddev /= avg_h;
-				}
-
-				if (avg_Ver * alpha + stddev * (1 - alpha) < min_val) {
-					min_val = avg_Ver  * alpha + stddev * (1 - alpha);
-					best_id = i;
-				}
-			}
-
-			return good_candidates[best_id];
+		for (int i = y_splits.size() - 1; i >= 0; i--) {
+			y_splits[i] = findLocalMin(Ver, y_splits[i]);
+			if (y_splits[i] == -1) y_splits.erase(y_splits.begin() + i);
 		}
 
-		// if there is no good splits found, use the original candidate splits
-		std::cerr << "-----------------------------------" << std::endl;
-		std::cerr << "No good split is found!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-		std::vector<float> y_splits;
-		getSplitLines(Ver, 0.1, y_splits);
 		y_splits.insert(y_splits.begin(), 0);
 		y_splits.push_back(img.rows - 1);
 
@@ -235,150 +139,6 @@ namespace fs {
 		splits.clear();
 		for (int i = list.size() - 1; i >= 0; --i) {
 			splits.push_back(list[i].first);
-		}
-	}
-
-	void extractWindows(cv::Mat gray_img, const std::vector<float>& y_splits, const std::vector<float>& x_splits, std::vector<std::vector<WindowPos>>& win_rects) {
-		// compute gradient magnitude
-		cv::Mat sobelx;
-		cv::Sobel(gray_img, sobelx, CV_32F, 1, 0);
-		cv::multiply(sobelx, sobelx, sobelx);
-
-		cv::Mat sobely;
-		cv::Sobel(gray_img, sobely, CV_32F, 0, 1);
-		cv::multiply(sobely, sobely, sobely);
-
-		cv::Mat_<float> grad_mag;
-		cv::sqrt(sobelx + sobely, grad_mag);
-
-		win_rects.resize(y_splits.size() - 1);
-		for (int i = 0; i < y_splits.size() - 1; ++i) {
-			win_rects[i].resize(x_splits.size() - 1);
-			for (int j = 0; j < x_splits.size() - 1; ++j) {
-				int x1 = x_splits[j];
-				int x2 = x_splits[j + 1] - 1;
-				int y1 = y_splits[i];
-				int y2 = y_splits[i + 1] - 1;
-				int w = x2 - x1 + 1;
-				int h = y2 - y1 + 1;
-
-				int min_w = w * 0.1;
-				int min_h = h * 0.1;
-
-				// tile image
-				cv::Mat tile_img(gray_img, cv::Rect(x1, y1, w, h));
-
-				// Update: 2016/12/07
-				// use Ver/Hor of this tile instead of the global ones
-				cv::Mat_<float> Ver, Hor;
-				computeVerAndHor2(tile_img, Ver, Hor, 0.0);
-
-
-				// compute max/min of Ver/Hor
-				float top_Ver = Ver(0);
-				float bottom_Ver = Ver(h - 1);
-				float max_Ver = 0;
-				for (int k = 0; k < h; ++k) {
-					if (Ver(k) > max_Ver) {
-						max_Ver = Ver(k);
-					}
-				}
-				float left_Hor = Hor(0);
-				float right_Hor = Hor(w - 1);
-				float max_Hor = 0;
-				for (int k = 0; k < w; ++k) {
-					if (Hor(k) > max_Hor) {
-						max_Hor = Hor(k);
-					}
-				}
-
-				// define the threshold of Ver/Hor
-				float top_threshold_Ver = (max_Ver - top_Ver) * 0.2 + top_Ver;
-				float bottom_threshold_Ver = (max_Ver - bottom_Ver) * 0.2 + bottom_Ver;
-				float left_threshold_Hor = (max_Hor - left_Hor) * 0.2 + left_Hor;
-				float right_threshold_Hor = (max_Hor - right_Hor) * 0.2 + right_Hor;
-
-				// defind a threshold
-				float threshold1 = 50;
-				float threshold2 = 150;
-
-				// detect edge
-				//cv::Mat roi(gray_img, cv::Rect(x1, y1, w, h));
-				cv::Mat edges;
-				cv::Canny(tile_img, edges, threshold1, threshold2);
-				
-				// sum up edge horizontally and vertically
-				cv::Mat edgeV, edgeH;
-				cv::reduce(edges, edgeV, 1, cv::REDUCE_SUM, CV_32F);
-				cv::reduce(edges, edgeH, 0, cv::REDUCE_SUM, CV_32F);
-				edgeH = edgeH.t();
-
-
-
-
-				// find the left edge of the window
-				int left = -1;
-				bool flag = false;
-				for (int xx = 0; xx < w; ++xx) {
-					if (!flag) {
-						if (Hor(xx) < left_threshold_Hor) continue;
-						flag = true;
-					}
-					if (edgeH.at<float>(xx, 0) >= 255 * h * 0.1) {
-						left = xx;
-						break;
-					}
-				}
-
-				// find the right edge of the window
-				int right = -1;
-				flag = false;
-				for (int xx = w - 1; xx >= 0; --xx) {
-					if (!flag) {
-						if (Hor(xx) < right_threshold_Hor) continue;
-						flag = true;
-					}
-					if (edgeH.at<float>(xx, 0) >= 255 * h * 0.1) {
-						right = xx;
-						break;
-					}
-				}
-
-				// find the top edge of the window
-				int top = -1;
-				flag = false;
-				for (int yy = 0; yy < h; ++yy) {
-					if (!flag) {
-						if (Ver(yy) < top_threshold_Ver) continue;
-						flag = true;
-					}
-					if (edgeV.at<float>(yy, 0) >= 255 * w * 0.1) {
-						top = yy;
-						break;
-					}
-				}
-
-				// find the bottom edge of the window
-				int bottom = -1;
-				flag = false;
-				for (int yy = h - 1; yy >= 0; --yy) {
-					if (!flag) {
-						if (Ver(yy) < top_threshold_Ver) continue;
-						flag = true;
-					}
-					if (edgeV.at<float>(yy, 0) >= 255 * w * 0.1) {
-						bottom = yy;
-						break;
-					}
-				}
-
-				if (left >= 0 && right >= 0 && right - left + 1 >= min_w && top >= 0 && bottom >= 0 && bottom - top + 1 > min_h && (right - left + 1) / (bottom - top + 1) < 8 && (bottom - top + 1) / (right - left + 1) < 8) {
-					win_rects[i][j] = WindowPos(left, top, right, bottom);
-				}
-				else {
-					win_rects[i][j].valid = WindowPos::INVALID;
-				}
-			}
 		}
 	}
 
